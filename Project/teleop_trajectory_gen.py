@@ -14,8 +14,10 @@ The script maps Vision Pro hand tracking to G1's 7-DOF arms:
 
 import os
 import sys
+import time
 from pathlib import Path
 from typing import List, Optional, Sequence
+from datetime import datetime
 
 import mujoco
 import numpy as np
@@ -92,6 +94,63 @@ def hand2pose(hand, side="right", euler=[0, 0, 0]):
     result[:3, 3] = wrist[:3, 3]
     
     return result
+
+
+def save_trajectory(trajectory_log: dict, output_path: Path, model: mujoco.MjModel):
+    """
+    Save recorded trajectory to NPZ file (compatible with follower.py and 09_mujoco_streaming.py).
+    
+    Args:
+        trajectory_log: Dictionary with lists of qpos, qvel, ctrl, mocap
+        output_path: Path where to save the .npz file
+        model: MuJoCo model (for validation)
+    """
+    print(f"\n💾 Saving trajectory to: {output_path}")
+    
+    # Convert lists to numpy arrays
+    qpos_log = np.stack(trajectory_log['qpos'], axis=0)  # (T, nq)
+    qvel_log = np.stack(trajectory_log['qvel'], axis=0)    # (T, nv)
+    ctrl_log = np.stack(trajectory_log['ctrl'], axis=0)   # (T, nu)
+    mocap_log = np.stack(trajectory_log['mocap'], axis=0) # (T, 14) - 2 mocap bodies
+    
+    T = qpos_log.shape[0]
+    duration = T / 50.0  # 50 Hz recording rate
+    
+    print(f"   Trajectory length: {T} timesteps")
+    print(f"   Duration: {duration:.3f} seconds")
+    print(f"   qpos shape: {qpos_log.shape}")
+    print(f"   qvel shape: {qvel_log.shape}")
+    print(f"   ctrl shape: {ctrl_log.shape}")
+    print(f"   mocap shape: {mocap_log.shape}")
+    
+    # Validate shapes
+    assert qpos_log.shape[0] == qvel_log.shape[0] == ctrl_log.shape[0] == mocap_log.shape[0], \
+        "All trajectory arrays must have the same number of timesteps"
+    assert qpos_log.shape[1] == model.nq, \
+        f"qpos shape mismatch: expected {model.nq}, got {qpos_log.shape[1]}"
+    assert qvel_log.shape[1] == model.nv, \
+        f"qvel shape mismatch: expected {model.nv}, got {qvel_log.shape[1]}"
+    assert ctrl_log.shape[1] == model.nu, \
+        f"ctrl shape mismatch: expected {model.nu}, got {ctrl_log.shape[1]}"
+    assert mocap_log.shape[1] == 7, \
+        f"mocap shape mismatch: expected 7 (x,y,z,qx,qy,qz,qw), got {mocap_log.shape[1]}"
+    
+    # Ensure output directory exists
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Save to NPZ file
+    np.savez(
+        output_path,
+        qpos=qpos_log,
+        qvel=qvel_log,
+        ctrl=ctrl_log,
+        mocap=mocap_log,
+    )
+    
+    print(f"✅ Trajectory saved successfully!")
+    print(f"   File: {output_path}")
+    print(f"   Size: {output_path.stat().st_size / 1024 / 1024:.2f} MB")
 
 
 def compensate_gravity(
@@ -211,36 +270,36 @@ def main(args):
         posture_task := mink.PostureTask(model, cost=1e-4),
     ]
 
-    # # Enable collision avoidance between arms
-    # try:
-    #     # Get geoms from the wrist bodies (sites are attached to wrist_yaw_link bodies)
-    #     l_wrist_geoms = mink.get_subtree_geom_ids(model, model.body("left_wrist_yaw_link").id)
-    #     r_wrist_geoms = mink.get_subtree_geom_ids(model, model.body("right_wrist_yaw_link").id)
-    #     l_arm_geoms = mink.get_subtree_geom_ids(model, model.body("left_shoulder_pitch_link").id)
-    #     r_arm_geoms = mink.get_subtree_geom_ids(model, model.body("right_shoulder_pitch_link").id)
-    #     torso_geoms = mink.get_subtree_geom_ids(model, model.body("torso_link").id)
-    #     collision_pairs = [
-    #         (l_wrist_geoms, r_wrist_geoms),
-    #         (l_arm_geoms + r_arm_geoms, torso_geoms),
-    #     ]
-    #     collision_avoidance_limit = mink.CollisionAvoidanceLimit(
-    #         model=model,
-    #         geom_pairs=collision_pairs,  # type: ignore
-    #         minimum_distance_from_collisions=0.05,
-    #         collision_detection_distance=0.1,
-    #     )
-    #     limits = [
-    #         mink.ConfigurationLimit(model=model),
-    #         mink.VelocityLimit(model, velocity_limits),
-    #         collision_avoidance_limit,
-    #     ]
-    # except Exception as e:
-    #     print(f"⚠️  Could not set up collision avoidance: {e}")
-    #     print("   Using basic limits")
-    #     limits = [
-    #         mink.ConfigurationLimit(model=model),
-    #         mink.VelocityLimit(model, velocity_limits),
-    #     ]
+    # Enable collision avoidance between arms
+    try:
+        # Get geoms from the wrist bodies (sites are attached to wrist_yaw_link bodies)
+        l_wrist_geoms = mink.get_subtree_geom_ids(model, model.body("left_wrist_yaw_link").id)
+        r_wrist_geoms = mink.get_subtree_geom_ids(model, model.body("right_wrist_yaw_link").id)
+        l_arm_geoms = mink.get_subtree_geom_ids(model, model.body("left_shoulder_pitch_link").id)
+        r_arm_geoms = mink.get_subtree_geom_ids(model, model.body("right_shoulder_pitch_link").id)
+        torso_geoms = mink.get_subtree_geom_ids(model, model.body("torso_link").id)
+        collision_pairs = [
+            (l_wrist_geoms, r_wrist_geoms),
+            (l_arm_geoms + r_arm_geoms, torso_geoms),
+        ]
+        collision_avoidance_limit = mink.CollisionAvoidanceLimit(
+            model=model,
+            geom_pairs=collision_pairs,  # type: ignore
+            minimum_distance_from_collisions=0.05,
+            collision_detection_distance=0.05,
+        )
+        limits = [
+            mink.ConfigurationLimit(model=model),
+            mink.VelocityLimit(model, velocity_limits),
+            collision_avoidance_limit,
+        ]
+    except Exception as e:
+        print(f"⚠️  Could not set up collision avoidance: {e}")
+        print("   Using basic limits")
+        limits = [
+            mink.ConfigurationLimit(model=model),
+            mink.VelocityLimit(model, velocity_limits),
+        ]
 
     # Get mocap body IDs for targets (using slash notation from scene_teleop.xml)
     try:
@@ -276,6 +335,24 @@ def main(args):
     mink.move_mocap_to_frame(model, data, "right/target", right_ee_name, "site")
 
     rate = RateLimiter(frequency=200.0, warn=False)
+    
+    # Setup trajectory recording at 50 Hz
+    # Since loop runs at 200 Hz, record every 4 iterations (200/50 = 4)
+    recording_enabled = args.record
+    recording_counter = 0
+    recording_interval = int(200.0 / 50.0)  # Record every 4 iterations
+    trajectory_log = {
+        'qpos': [],
+        'qvel': [],
+        'ctrl': [],
+        'mocap': [],
+    }
+    recording_start_time = None
+    
+    if recording_enabled:
+        print(f"📹 Recording enabled: {args.output_path}")
+        print(f"   Recording rate: 50 Hz (every {recording_interval} iterations at 200 Hz)")
+        print(f"   Press Ctrl+C to stop and save trajectory")
 
     try:
         while True:
@@ -323,11 +400,43 @@ def main(args):
             data.qpos[dof_ids] = configuration.q[dof_ids]
             mujoco.mj_forward(model, data)
 
+            # Record trajectory at 50 Hz (every 4 iterations at 200 Hz)
+            if recording_enabled:
+                if recording_start_time is None:
+                    recording_start_time = time.time()
+                
+                recording_counter += 1
+                if recording_counter >= recording_interval:
+                    recording_counter = 0
+                    
+                    # Record qpos (all joints)
+                    trajectory_log['qpos'].append(data.qpos.copy())
+                    
+                    # Record qvel (all velocities)
+                    trajectory_log['qvel'].append(data.qvel.copy())
+                    
+                    # Record ctrl (all actuators)
+                    trajectory_log['ctrl'].append(data.ctrl.copy())
+                    
+                    # Record mocap pose (left target only, for compatibility with 09_mujoco_streaming.py)
+                    # Format: [x, y, z, qx, qy, qz, qw] (7 values)
+                    # MuJoCo stores quat as [w, x, y, z], convert to [x, y, z, w]
+                    mocap_quat_l = data.mocap_quat[l_mid, :]  # [w, x, y, z]
+                    mocap_data = np.zeros(7)
+                    mocap_data[0:3] = data.mocap_pos[l_mid, :]  # [x, y, z]
+                    mocap_data[3:6] = mocap_quat_l[1:4]  # [x, y, z] from quaternion
+                    mocap_data[6] = mocap_quat_l[0]  # w
+                    trajectory_log['mocap'].append(mocap_data)
+            
             streamer.update_sim()
             rate.sleep()
 
     except KeyboardInterrupt:
         print("\n\n🛑 Stopped by user")
+        
+        # Save trajectory if recording was enabled
+        if recording_enabled and len(trajectory_log['qpos']) > 0:
+            save_trajectory(trajectory_log, args.output_path, model)
 
 
 if __name__ == "__main__":
@@ -336,7 +445,29 @@ if __name__ == "__main__":
         description="Mujoco G1 Humanoid DiffIK with VisionPro Hand Tracking"
     )
     parser.add_argument("--ip", type=str, required=True, help="Vision Pro IP address")
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="Enable trajectory recording at 50 Hz"
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Output path for trajectory NPZ file (default: Project/trajectories/traj_YYYYMMDD_HHMMSS.npz)"
+    )
     args = parser.parse_args()
+    
+    # Set default output path if not provided
+    if args.record and args.output is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = Path(_HERE) / "trajectories"
+        output_dir.mkdir(exist_ok=True)
+        args.output_path = output_dir / f"traj_{timestamp}.npz"
+    elif args.record:
+        args.output_path = Path(args.output)
+    else:
+        args.output_path = None
 
     main(args)
 
