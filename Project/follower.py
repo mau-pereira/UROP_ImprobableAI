@@ -992,6 +992,11 @@ def main():
                     print(f"t = {t:6.3f}  |  ||e_left|| = {err_left:8.5f} rad  |  ||e_right|| = {err_right:8.5f} rad")
                     print(f"         b_left={b_left_avg:6.3f}, Kp_left={left_adaptive_ctrl.Kp:6.1f}, Kd_left={left_adaptive_ctrl.Kd:5.1f}  |  V_left={V_left:.6f}")
                     print(f"         b_right={b_right_avg:6.3f}, Kp_right={right_adaptive_ctrl.Kp:6.1f}, Kd_right={right_adaptive_ctrl.Kd:5.1f}  |  V_right={V_right:.6f}")
+                    # Print individual friction values for each joint
+                    b_left = left_adaptive_ctrl.theta_hat[:left_adaptive_ctrl.n_joints]
+                    b_right = right_adaptive_ctrl.theta_hat[:right_adaptive_ctrl.n_joints]
+                    print(f"         Friction (left):  {b_left}")
+                    print(f"         Friction (right): {b_right}")
                 else:
                     print(f"t = {t:6.3f}  |  ||e_left|| = {err_left:8.5f} rad  |  ||e_right|| = {err_right:8.5f} rad")
 

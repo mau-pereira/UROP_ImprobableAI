@@ -1,0 +1,1160 @@
+{
+  "timestamp": "20251211_211514",
+  "total_configs": 72,
+  "successful_runs": 72,
+  "elapsed_time_seconds": 663.1969010829926,
+  "results": [
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.1,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 0.5,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 1.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.7,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.8,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.85,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.85,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.9,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.9,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.95,
+        "trajectory_type": "sinusoidal",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    },
+    {
+      "config": {
+        "gamma_friction": 2.0,
+        "alpha_qddot": 0.9,
+        "alpha_theta": 0.95,
+        "trajectory_type": "teleop",
+        "adapt_gains": false,
+        "Kp_init": 150.0,
+        "Kd_init": 10.0,
+        "lambda_param": 1.0
+      },
+      "metrics": {
+        "rmse_left": 0.0,
+        "rmse_right": 0.0
+      }
+    }
+  ]
+}

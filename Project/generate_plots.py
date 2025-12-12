@@ -186,10 +186,14 @@ def plot_trajectory_comparison(results_data, output_dir: Path):
         
         if config['trajectory_type'] == 'sinusoidal':
             for key in sinusoidal_metrics:
-                sinusoidal_metrics[key].append(metrics[key])
+                # Manejar métricas faltantes de forma segura
+                if key in metrics:
+                    sinusoidal_metrics[key].append(metrics[key])
         else:
             for key in teleop_metrics:
-                teleop_metrics[key].append(metrics[key])
+                # Manejar métricas faltantes de forma segura
+                if key in metrics:
+                    teleop_metrics[key].append(metrics[key])
     
     # Box plots comparativos
     metrics_to_plot = [
@@ -202,9 +206,13 @@ def plot_trajectory_comparison(results_data, output_dir: Path):
     for idx, (metric_key, metric_label) in enumerate(metrics_to_plot):
         ax = axes[idx // 2, idx % 2]
         
+        # Filtrar valores infinitos y listas vacías
+        sin_data = [x for x in sinusoidal_metrics[metric_key] if x != float('inf')] if sinusoidal_metrics[metric_key] else []
+        tel_data = [x for x in teleop_metrics[metric_key] if x != float('inf')] if teleop_metrics[metric_key] else []
+        
         data_to_plot = [
-            sinusoidal_metrics[metric_key] if sinusoidal_metrics[metric_key] else [0],
-            teleop_metrics[metric_key] if teleop_metrics[metric_key] else [0]
+            sin_data if sin_data else [0],
+            tel_data if tel_data else [0]
         ]
         
         bp = ax.boxplot(data_to_plot, labels=['Sinusoidal', 'Teleoperada'], 

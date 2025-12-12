@@ -119,7 +119,7 @@ def run_simulation(config: dict, save_data: bool = True):
     qdot_right_des_prev = None
     t_prev = 0.0
     
-    # Datos para guardar
+    # Datos para guardar (siempre calculamos errores para métricas, pero solo guardamos si save_data=True)
     lambda_param = config.get('lambda_param', 1.0)
     errors_left = []
     errors_right = []
@@ -180,74 +180,103 @@ def run_simulation(config: dict, save_data: bool = True):
                                          q_right_des, qdot_right_des, qddot_right_des,
                                          right_ctrl)
         
-        # Calcular errores para logging
+        # Calcular errores (siempre, para métricas)
         e_left = q_left_des - data.qpos[left_qpos_idx]
         edot_left = qdot_left_des - data.qvel[left_dof_idx]
         e_right = q_right_des - data.qpos[right_qpos_idx]
         edot_right = qdot_right_des - data.qvel[right_dof_idx]
         
+        error_left_norm = np.linalg.norm(e_left)
+        error_right_norm = np.linalg.norm(e_right)
+        
         # Guardar datos (cada N pasos para ahorrar memoria)
-        if save_data and step_count % 10 == 0:
-            errors_left.append(np.linalg.norm(e_left))
-            errors_right.append(np.linalg.norm(e_right))
-            errors_vel_left.append(np.linalg.norm(edot_left))
-            errors_vel_right.append(np.linalg.norm(edot_right))
-            lyapunov_left.append(V_left)
-            lyapunov_right.append(V_right)
-            friction_left.append(np.mean(left_ctrl.theta_hat[:n_left]))
-            friction_right.append(np.mean(right_ctrl.theta_hat[:n_right]))
-            Kp_left.append(left_ctrl.Kp)
-            Kp_right.append(right_ctrl.Kp)
-            Kd_left.append(left_ctrl.Kd)
-            Kd_right.append(right_ctrl.Kd)
+        # En modo rápido, guardamos errores cada N pasos para calcular métricas
+        # En modo completo, guardamos todo
+        save_interval = 10 if save_data else 50  # Más espaciado en modo rápido
+        
+        if step_count % save_interval == 0:
+            errors_left.append(error_left_norm)
+            errors_right.append(error_right_norm)
             times.append(t)
+            
+            if save_data:
+                # Solo guardar datos detallados en modo completo
+                errors_vel_left.append(np.linalg.norm(edot_left))
+                errors_vel_right.append(np.linalg.norm(edot_right))
+                lyapunov_left.append(V_left)
+                lyapunov_right.append(V_right)
+                friction_left.append(np.mean(left_ctrl.theta_hat[:n_left]))
+                friction_right.append(np.mean(right_ctrl.theta_hat[:n_right]))
+                Kp_left.append(left_ctrl.Kp)
+                Kp_right.append(right_ctrl.Kp)
+                Kd_left.append(left_ctrl.Kd)
+                Kd_right.append(right_ctrl.Kd)
         
         # Avanzar simulación
         mj.mj_step(model, data)
         step_count += 1
     
     # Calcular métricas finales
-    if save_data and len(errors_left) > 0:
+    # Incluso en modo rápido, calculamos métricas básicas durante la simulación
+    if len(errors_left) > 0:
         errors_left = np.array(errors_left)
         errors_right = np.array(errors_right)
         
-        results = {
-            'config': config,
-            'metrics': {
-                'rmse_left': float(np.sqrt(np.mean(errors_left**2))),
-                'rmse_right': float(np.sqrt(np.mean(errors_right**2))),
-                'max_error_left': float(np.max(errors_left)),
-                'max_error_right': float(np.max(errors_right)),
-                'mean_error_left': float(np.mean(errors_left)),
-                'mean_error_right': float(np.mean(errors_right)),
-                'final_error_left': float(errors_left[-1]),
-                'final_error_right': float(errors_right[-1]),
-                'std_error_left': float(np.std(errors_left)),
-                'std_error_right': float(np.std(errors_right)),
-            },
-            'data': {
-                'times': times,
-                'errors_left': errors_left.tolist(),
-                'errors_right': errors_right.tolist(),
-                'errors_vel_left': errors_vel_left,
-                'errors_vel_right': errors_vel_right,
-                'lyapunov_left': lyapunov_left,
-                'lyapunov_right': lyapunov_right,
-                'friction_left': friction_left,
-                'friction_right': friction_right,
-                'Kp_left': Kp_left,
-                'Kp_right': Kp_right,
-                'Kd_left': Kd_left,
-                'Kd_right': Kd_right,
-            }
+        metrics = {
+            'rmse_left': float(np.sqrt(np.mean(errors_left**2))),
+            'rmse_right': float(np.sqrt(np.mean(errors_right**2))),
+            'max_error_left': float(np.max(errors_left)),
+            'max_error_right': float(np.max(errors_right)),
+            'mean_error_left': float(np.mean(errors_left)),
+            'mean_error_right': float(np.mean(errors_right)),
+            'final_error_left': float(errors_left[-1]),
+            'final_error_right': float(errors_right[-1]),
+            'std_error_left': float(np.std(errors_left)),
+            'std_error_right': float(np.std(errors_right)),
         }
+        
+        if save_data:
+            # Guardar datos completos
+            results = {
+                'config': config,
+                'metrics': metrics,
+                'data': {
+                    'times': times,
+                    'errors_left': errors_left.tolist(),
+                    'errors_right': errors_right.tolist(),
+                    'errors_vel_left': errors_vel_left,
+                    'errors_vel_right': errors_vel_right,
+                    'lyapunov_left': lyapunov_left,
+                    'lyapunov_right': lyapunov_right,
+                    'friction_left': friction_left,
+                    'friction_right': friction_right,
+                    'Kp_left': Kp_left,
+                    'Kp_right': Kp_right,
+                    'Kd_left': Kd_left,
+                    'Kd_right': Kd_right,
+                }
+            }
+        else:
+            # Solo métricas (sin datos completos)
+            results = {
+                'config': config,
+                'metrics': metrics
+            }
     else:
-        # Solo métricas básicas (más rápido)
+        # Fallback si no hay datos
         results = {
             'config': config,
             'metrics': {
-                'rmse_left': 0.0,  # Placeholder
-                'rmse_right': 0.0,
+                'rmse_left': float('inf'),
+                'rmse_right': float('inf'),
+                'max_error_left': float('inf'),
+                'max_error_right': float('inf'),
+                'mean_error_left': float('inf'),
+                'mean_error_right': float('inf'),
+                'final_error_left': float('inf'),
+                'final_error_right': float('inf'),
+                'std_error_left': 0.0,
+                'std_error_right': 0.0,
             }
         }
     
