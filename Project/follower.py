@@ -1,19 +1,19 @@
 """
-Follower Robot Controller - Control Adaptativo Basado en Lyapunov
+Follower Robot Controller - Lyapunov-Based Adaptive Control
 
-Este script implementa dos tipos de control:
-1. Control PD estático (ganancias fijas)
-2. Control adaptativo basado en Lyapunov (ganancias que se ajustan automáticamente)
+This script implements two types of control:
+1. Static PD control (fixed gains)
+2. Lyapunov-based adaptive control (gains that adjust automatically)
 
-CONTROL ADAPTATIVO:
-- Función de Lyapunov: V = ½(eᵀe + ėᵀė) + términos de parámetros
-- Leyes adaptativas:
-  * Kp se ajusta según el error de posición: Kṗ = γ_Kp * e²
-  * Kd se ajusta según el error de velocidad: Kḋ = γ_Kd * ė²
-  * b̂ estima fricción viscosa: b̂̇ = γ_b * qdot * e
-- Garantiza estabilidad asintótica (V̇ ≤ 0)
+ADAPTIVE CONTROL:
+- Lyapunov function: V = ½(eᵀe + ėᵀė) + parameter terms
+- Adaptive laws:
+  * Kp adjusts according to position error: Kṗ = γ_Kp * e²
+  * Kd adjusts according to velocity error: Kḋ = γ_Kd * ė²
+  * b̂ estimates viscous friction: b̂̇ = γ_b * qdot * e
+- Guarantees asymptotic stability (V̇ ≤ 0)
 
-Para cambiar entre controladores, modifica USE_ADAPTIVE_CONTROL en main().
+To switch between controllers, modify USE_ADAPTIVE_CONTROL in main().
 """
 
 import time
@@ -24,30 +24,30 @@ from pathlib import Path
 
 
 # ==========================
-# CONFIGURACIÓN DE RUTAS
+# PATH CONFIGURATION
 # ==========================
 
-# Pon aquí la ruta local al XML del G1 esclavo (29 DOF, con actuadores tipo motor)
+# Set here the local path to the G1 slave XML (29 DOF, with motor-type actuators)
 SLAVE_XML_PATH = "../assets/g1_from_unitree_github/scene_29dof.xml"
 
-# (Opcional, para el futuro) ruta al XML del G1 líder (menagerie, actuadores tipo position)
+# (Optional, for future) path to G1 leader XML (menagerie, position-type actuators)
 LEADER_XML_PATH = "path/to/mujoco_menagerie/unitree_g1/scene.xml"
 
-# Ruta al archivo NPZ con trayectoria de teleoperación (formato compatible con 09_mujoco_streaming.py)
-# Puedes usar una ruta relativa desde este archivo o absoluta
-# Ejemplo: "trajectories/traj_20251211_173426.npz" o ruta absoluta
-# La ruta se resuelve relativa al directorio donde está este archivo
+# Path to NPZ file with teleoperation trajectory (format compatible with 09_mujoco_streaming.py)
+# You can use a relative path from this file or an absolute path
+# Example: "trajectories/traj_20251211_173426.npz" or absolute path
+# The path is resolved relative to the directory where this file is located
 _HERE = Path(__file__).parent
-TRAJECTORY_NPZ_PATH = _HERE / "trajectories" / "traj_20251211_194827.npz"
+TRAJECTORY_NPZ_PATH = _HERE / "trajectories" / "traj_20251211_200112.npz"
 
 
 # ==========================
-# JOINTS DE LOS BRAZOS
+# ARM JOINTS
 # ==========================
-# IMPORTANTE:
-#  - Rellena estas listas con los NOMBRES EXACTOS de los joints de cada brazo
-#    tal como aparecen en tu XML del G1 esclavo (scene_29dof.xml).
-#  - Puedes imprimir todos los joints con la función print_all_joints(model) de más abajo.
+# IMPORTANT:
+#  - Fill these lists with the EXACT NAMES of the joints for each arm
+#    as they appear in your G1 slave XML (scene_29dof.xml).
+#  - You can print all joints using the print_all_joints(model) function below.
 
 LEFT_ARM_JOINT_NAMES = [
     "left_shoulder_pitch_joint",
@@ -71,12 +71,12 @@ RIGHT_ARM_JOINT_NAMES = [
 
 
 # ==========================
-# UTILIDADES
+# UTILITIES
 # ==========================
 
 def print_all_joints(model: mj.MjModel):
-    """Imprime todos los joints con sus índices para que puedas copiar nombres."""
-    print("=== JOINTS EN EL MODELO ===")
+    """Prints all joints with their indices so you can copy names."""
+    print("=== JOINTS IN THE MODEL ===")
     for j_id in range(model.njnt):
         name = mj.mj_id2name(model, mj.mjtObj.mjOBJ_JOINT, j_id)
         qpos_adr = model.jnt_qposadr[j_id]
@@ -89,17 +89,17 @@ def print_all_joints(model: mj.MjModel):
 def build_arm_maps(model: mj.MjModel,
                    joint_names: list[str]):
     """
-    A partir de una lista de nombres de joints, construye:
-    - índices de qpos (posición generalizada)
-    - índices de dof (velocidad generalizada)
-    - índices de actuadores que controlan cada joint (para data.ctrl)
+    From a list of joint names, builds:
+    - qpos indices (generalized position)
+    - dof indices (generalized velocity)
+    - actuator indices that control each joint (for data.ctrl)
 
-    Asume 1 actuador por joint (lo típico en modelos de robots).
+    Assumes 1 actuator per joint (typical in robot models).
     """
-    # Mapa joint_id -> lista de actuadores que lo controlan
+    # Map joint_id -> list of actuators that control it
     jointid_to_actids: dict[int, list[int]] = {}
     for act_id in range(model.nu):
-        # actuator_trnid[act_id, 0] contiene el joint_id si es un actuator de tipo joint
+        # actuator_trnid[act_id, 0] contains the joint_id if it's a joint-type actuator
         joint_id = model.actuator_trnid[act_id, 0]
         if joint_id >= 0:
             jointid_to_actids.setdefault(joint_id, []).append(act_id)
@@ -110,19 +110,19 @@ def build_arm_maps(model: mj.MjModel,
 
     for name in joint_names:
         if name is None or name == "":
-            raise ValueError("Hay un joint vacío en la lista, revisa LEFT_ARM_JOINT_NAMES / RIGHT_ARM_JOINT_NAMES.")
+            raise ValueError("There is an empty joint in the list, check LEFT_ARM_JOINT_NAMES / RIGHT_ARM_JOINT_NAMES.")
 
         j_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_JOINT, name)
         if j_id < 0:
-            raise RuntimeError(f"Joint '{name}' no existe en el modelo.")
+            raise RuntimeError(f"Joint '{name}' does not exist in the model.")
 
         qpos_idx = model.jnt_qposadr[j_id]
         dof_idx = model.jnt_dofadr[j_id]
 
         if j_id not in jointid_to_actids:
-            raise RuntimeError(f"Joint '{name}' (id={j_id}) no tiene actuador asociado en 'actuator_trnid'.")
+            raise RuntimeError(f"Joint '{name}' (id={j_id}) has no associated actuator in 'actuator_trnid'.")
 
-        # Asumimos un actuador por joint; si hay más, tomamos el primero
+        # Assume one actuator per joint; if there are more, take the first one
         act_id = jointid_to_actids[j_id][0]
 
         qpos_indices.append(qpos_idx)
@@ -133,10 +133,10 @@ def build_arm_maps(model: mj.MjModel,
 
 
 # ==========================
-# TRAYECTORIA DESEADA
+# DESIRED TRAJECTORY
 # ==========================
 
-# Variable global para almacenar la trayectoria cargada
+# Global variable to store the loaded trajectory
 _trajectory_data = None
 _trajectory_dt = None
 _trajectory_duration = None
@@ -149,50 +149,62 @@ def load_trajectory_from_npz(npz_path: str | Path,
                              right_qpos_idx: np.ndarray,
                              model_dt: float):
     """
-    Carga una trayectoria desde un archivo NPZ (formato compatible con 09_mujoco_streaming.py).
+    Loads a trajectory from an NPZ file (format compatible with 09_mujoco_streaming.py).
     
-    El archivo NPZ debe contener:
-    - 'qpos': array de shape (T, nq) con posiciones de todos los joints
+    The NPZ file must contain:
+    - 'qpos': array of shape (T, nq) with positions of all joints
+    - 'dt': recording timestep (required)
     
     Args:
-        npz_path: Ruta al archivo .npz
-        left_qpos_idx: Índices de qpos para el brazo izquierdo
-        right_qpos_idx: Índices de qpos para el brazo derecho
-        model_dt: Timestep del modelo MuJoCo (para calcular duración)
+        npz_path: Path to the .npz file
+        left_qpos_idx: qpos indices for the left arm
+        right_qpos_idx: qpos indices for the right arm
+        model_dt: MuJoCo model timestep (not used, 'dt' is read from NPZ)
     """
     global _trajectory_data, _trajectory_dt, _trajectory_duration
     global _left_qpos_idx, _right_qpos_idx
     
     npz_path = Path(npz_path)
     if not npz_path.exists():
-        raise FileNotFoundError(f"Archivo de trayectoria no encontrado: {npz_path}")
+        raise FileNotFoundError(f"Trajectory file not found: {npz_path}")
     
-    print(f"📂 Cargando trayectoria desde: {npz_path}")
+    print(f"📂 Loading trajectory from: {npz_path}")
     traj = np.load(npz_path)
     
     if "qpos" not in traj:
-        raise ValueError("El archivo NPZ debe contener la clave 'qpos'")
+        raise ValueError("The NPZ file must contain the 'qpos' key")
     
     qpos_log = traj["qpos"]  # shape: (T, nq)
     T = qpos_log.shape[0]
     
-    # Extraer solo los joints de los brazos
+    # Read dt from NPZ (required from now on)
+    if "dt" not in traj:
+        raise ValueError(
+            "The NPZ file must contain the 'dt' key with the recording timestep. "
+            "Make sure to use a trajectory recorded with the updated version of teleop_trajectory_gen.py."
+        )
+    
+    trajectory_dt = float(traj["dt"])  # actual recording dt
+    recording_freq = 1.0 / trajectory_dt
+    print(f"   ✅ Recording dt: {trajectory_dt:.6f} s ({recording_freq:.1f} Hz)")
+    
+    # Extract only arm joints
     q_left_traj = qpos_log[:, left_qpos_idx]  # shape: (T, 7)
     q_right_traj = qpos_log[:, right_qpos_idx]  # shape: (T, 7)
     
-    # Guardar en variable global
+    # Save to global variable
     _trajectory_data = {
         'q_left': q_left_traj,
         'q_right': q_right_traj,
     }
-    _trajectory_dt = model_dt
-    _trajectory_duration = T * model_dt
+    _trajectory_dt = trajectory_dt  # Use actual recording dt, not model_dt
+    _trajectory_duration = T * trajectory_dt  # Correct duration
     _left_qpos_idx = left_qpos_idx
     _right_qpos_idx = right_qpos_idx
     
-    print(f"✅ Trayectoria cargada: {T} timesteps, duración = {_trajectory_duration:.3f} s")
-    print(f"   Brazo izquierdo: {q_left_traj.shape}")
-    print(f"   Brazo derecho: {q_right_traj.shape}")
+    print(f"✅ Trajectory loaded: {T} timesteps, duration = {_trajectory_duration:.3f} s")
+    print(f"   Left arm: {q_left_traj.shape}")
+    print(f"   Right arm: {q_right_traj.shape}")
 
 
 def desired_arm_trajectories_sinusoidal_shoulders(t: float,
@@ -201,36 +213,36 @@ def desired_arm_trajectories_sinusoidal_shoulders(t: float,
                                                    amplitude: float = 0.5,
                                                    frequency: float = 0.5) -> tuple[np.ndarray, np.ndarray]:
     """
-    Genera trayectoria sinusoidal SOLO para el primer joint de cada brazo (shoulder_pitch).
-    Todos los demás joints permanecen en 0 (fijos).
+    Generates sinusoidal trajectory ONLY for the first joint of each arm (shoulder_pitch).
+    All other joints remain at 0 (fixed).
     
-    Esto aísla el problema del controlador moviendo solo un joint por brazo.
+    This isolates the controller problem by moving only one joint per arm.
     
     Args:
-        t: Tiempo actual de simulación (segundos)
-        n_left: Número de joints del brazo izquierdo
-        n_right: Número de joints del brazo derecho
-        amplitude: Amplitud de la sinusoide en radianes (default: 0.5 rad ≈ 28°)
-        frequency: Frecuencia en Hz (default: 0.5 Hz = período de 2 segundos)
+        t: Current simulation time (seconds)
+        n_left: Number of joints in the left arm
+        n_right: Number of joints in the right arm
+        amplitude: Sinusoid amplitude in radians (default: 0.5 rad ≈ 28°)
+        frequency: Frequency in Hz (default: 0.5 Hz = period of 2 seconds)
     
     Returns:
-        q_left_des: Array de shape (n_left,) con joint angles deseados
-        q_right_des: Array de shape (n_right,) con joint angles deseados
+        q_left_des: Array of shape (n_left,) with desired joint angles
+        q_right_des: Array of shape (n_right,) with desired joint angles
     """
-    # Inicializar todos los joints en 0
+    # Initialize all joints to 0
     q_left_des = np.zeros(n_left)
     q_right_des = np.zeros(n_right)
     
-    # Solo el primer joint (shoulder_pitch) se mueve sinusoidalmente
+    # Only the first joint (shoulder_pitch) moves sinusoidally
     if n_left > 0:
-        # Brazo izquierdo: solo el primer joint (shoulder_pitch)
+        # Left arm: only the first joint (shoulder_pitch)
         q_left_des[0] = amplitude * np.sin(2 * np.pi * frequency * t)
     
     if n_right > 0:
-        # Brazo derecho: solo el primer joint (shoulder_pitch)
+        # Right arm: only the first joint (shoulder_pitch)
         q_right_des[0] = amplitude * np.sin(2 * np.pi * frequency * t)
     
-    # Todos los demás joints (shoulder_roll, shoulder_yaw, elbow, wrist) permanecen en 0
+    # All other joints (shoulder_roll, shoulder_yaw, elbow, wrist) remain at 0
     
     return q_left_des, q_right_des
 
@@ -239,42 +251,42 @@ def desired_arm_trajectories(t: float,
                              n_left: int,
                              n_right: int) -> tuple[np.ndarray, np.ndarray]:
     """
-    Devuelve q_des_left(t), q_des_right(t) para cada brazo desde trayectoria cargada.
+    Returns q_des_left(t), q_des_right(t) for each arm from loaded trajectory.
     
-    Interpola linealmente entre timesteps de la trayectoria cargada.
-    Si t excede la duración de la trayectoria, devuelve el último valor.
+    Linearly interpolates between timesteps of the loaded trajectory.
+    If t exceeds the trajectory duration, returns the last value.
     
     Args:
-        t: Tiempo actual de simulación (segundos)
-        n_left: Número de joints del brazo izquierdo
-        n_right: Número de joints del brazo derecho
+        t: Current simulation time (seconds)
+        n_left: Number of joints in the left arm
+        n_right: Number of joints in the right arm
     
     Returns:
-        q_left_des: Array de shape (n_left,) con joint angles deseados del brazo izquierdo
-        q_right_des: Array de shape (n_right,) con joint angles deseados del brazo derecho
+        q_left_des: Array of shape (n_left,) with desired joint angles for the left arm
+        q_right_des: Array of shape (n_right,) with desired joint angles for the right arm
     """
     global _trajectory_data, _trajectory_dt, _trajectory_duration
     
     if _trajectory_data is None:
         raise RuntimeError(
-            "Trayectoria no cargada. Llama a load_trajectory_from_npz() antes de usar desired_arm_trajectories()."
+            "Trajectory not loaded. Call load_trajectory_from_npz() before using desired_arm_trajectories()."
         )
     
     q_left_traj = _trajectory_data['q_left']
     q_right_traj = _trajectory_data['q_right']
     
-    # Calcular índice de timestep (puede ser fraccional para interpolación)
+    # Calculate timestep index (can be fractional for interpolation)
     step_index = t / _trajectory_dt
     
-    # Si t excede la duración, usar el último timestep
+    # If t exceeds duration, use the last timestep
     if step_index >= q_left_traj.shape[0] - 1:
         q_left_des = q_left_traj[-1]
         q_right_des = q_right_traj[-1]
     else:
-        # Interpolación lineal entre timesteps
+        # Linear interpolation between timesteps
         idx_low = int(np.floor(step_index))
         idx_high = min(idx_low + 1, q_left_traj.shape[0] - 1)
-        alpha = step_index - idx_low  # factor de interpolación [0, 1)
+        alpha = step_index - idx_low  # interpolation factor [0, 1)
         
         q_left_des = (1 - alpha) * q_left_traj[idx_low] + alpha * q_left_traj[idx_high]
         q_right_des = (1 - alpha) * q_right_traj[idx_low] + alpha * q_right_traj[idx_high]
@@ -283,21 +295,21 @@ def desired_arm_trajectories(t: float,
 
 
 # ==========================
-# CONTROL ADAPTATIVO COMPLETO
+# COMPLETE ADAPTIVE CONTROL
 # ==========================
 
 class AdaptiveController:
     """
-    Controlador adaptativo completo basado en Lyapunov usando ecuaciones del movimiento.
+    Complete Lyapunov-based adaptive controller using equations of motion.
     
-    Teoría:
-    - Ecuaciones del movimiento: M(q)q̈ + C(q,q̇)q̇ + g(q) = τ
+    Theory:
+    - Equations of motion: M(q)q̈ + C(q,q̇)q̇ + g(q) = τ
     - Control: τ = M_known(q)q̈_des + C_known(q,q̇)q̇ + g_known(q) + Y_friction * θ_friction + Kp*e + Kd*ė
-    - Ley adaptativa: θ̂̇ = -ΓYᵀ(e + λė)
+    - Adaptive law: θ̂̇ = -ΓYᵀ(e + λė)
     
-    Parámetros:
-    - Masas e inercias: CONOCIDAS (fijas, no se adaptan)
-    - Fricción: DESCONOCIDA (se adapta)
+    Parameters:
+    - Masses and inertias: KNOWN (fixed, not adapted)
+    - Friction: UNKNOWN (adapted)
     """
     
     def __init__(self, n_joints: int, dt: float, model: mj.MjModel = None, 
@@ -306,14 +318,14 @@ class AdaptiveController:
                  adapt_gains: bool = False):
         """
         Args:
-            n_joints: Número de joints a controlar
-            dt: Timestep de simulación
-            model: Modelo MuJoCo (opcional, para construir Y)
-            arm_qpos_idx: Índices de qpos del brazo (opcional)
-            arm_dof_idx: Índices de qvel del brazo (opcional)
-            known_masses: Array de masas conocidas [m₁, m₂, ..., mₙ] (kg)
-            known_inertias: Array de inercias conocidas [I₁, I₂, ..., Iₙ] (kg·m²)
-            adapt_gains: Si True, adapta ganancias PD (Kp, Kd). Si False, usa ganancias fijas.
+            n_joints: Number of joints to control
+            dt: Simulation timestep
+            model: MuJoCo model (optional, for building Y)
+            arm_qpos_idx: Arm qpos indices (optional)
+            arm_dof_idx: Arm qvel indices (optional)
+            known_masses: Array of known masses [m₁, m₂, ..., mₙ] (kg)
+            known_inertias: Array of known inertias [I₁, I₂, ..., Iₙ] (kg·m²)
+            adapt_gains: If True, adapts PD gains (Kp, Kd). If False, uses fixed gains.
         """
         self.n_joints = n_joints
         self.dt = dt
@@ -322,61 +334,61 @@ class AdaptiveController:
         self.arm_dof_idx = arm_dof_idx
         self.adapt_gains = adapt_gains
         
-        # Parámetros conocidos (fijos, no se adaptan)
+        # Known parameters (fixed, not adapted)
         if known_masses is not None:
             if len(known_masses) != n_joints:
-                raise ValueError(f"known_masses debe tener {n_joints} elementos, tiene {len(known_masses)}")
+                raise ValueError(f"known_masses must have {n_joints} elements, has {len(known_masses)}")
             self.known_masses = np.array(known_masses)
         else:
-            # Valores por defecto (extraer del modelo MuJoCo si es posible)
-            self.known_masses = np.ones(n_joints) * 0.5  # kg por defecto
+            # Default values (extract from MuJoCo model if possible)
+            self.known_masses = np.ones(n_joints) * 0.5  # kg default
         
         if known_inertias is not None:
             if len(known_inertias) != n_joints:
-                raise ValueError(f"known_inertias debe tener {n_joints} elementos, tiene {len(known_inertias)}")
+                raise ValueError(f"known_inertias must have {n_joints} elements, has {len(known_inertias)}")
             self.known_inertias = np.array(known_inertias)
         else:
-            # Valores por defecto
-            self.known_inertias = np.ones(n_joints) * 0.01  # kg·m² por defecto
+            # Default values
+            self.known_inertias = np.ones(n_joints) * 0.01  # kg·m² default
         
-        # Ganancias PD: adaptativas o fijas según adapt_gains
+        # PD gains: adaptive or fixed according to adapt_gains
         if adapt_gains:
-            # Número de parámetros adaptativos: fricción (1 por joint) + ganancias PD (2 globales)
-            # Estructura: [b₁, b₂, ..., bₙ, Kp, Kd]
+            # Number of adaptive parameters: friction (1 per joint) + PD gains (2 global)
+            # Structure: [b₁, b₂, ..., bₙ, Kp, Kd]
             self.n_params = n_joints + 2
             self.theta_hat = np.zeros(self.n_params)
-            # Fricción inicial = 0 (primeros n elementos)
-            # Ganancias iniciales (últimos 2 elementos)
-            self.theta_hat[-2] = 150.0  # Kp inicial
-            self.theta_hat[-1] = 10.0   # Kd inicial
+            # Initial friction = 0 (first n elements)
+            # Initial gains (last 2 elements)
+            self.theta_hat[-2] = 150.0  # Initial Kp
+            self.theta_hat[-1] = 10.0   # Initial Kd
             
-            # Matriz de adaptación Γ
+            # Adaptation matrix Γ
             self.Gamma = np.eye(self.n_params) * 0.5
-            self.Gamma[-2, -2] = 0.1  # Gamma para Kp (más conservador)
-            self.Gamma[-1, -1] = 0.1  # Gamma para Kd (más conservador)
+            self.Gamma[-2, -2] = 0.1  # Gamma for Kp (more conservative)
+            self.Gamma[-1, -1] = 0.1  # Gamma for Kd (more conservative)
         else:
-            # Solo fricción se adapta, ganancias son fijas
-            # Estructura: [b₁, b₂, ..., bₙ]
+            # Only friction is adapted, gains are fixed
+            # Structure: [b₁, b₂, ..., bₙ]
             self.n_params = n_joints
-            self.theta_hat = np.zeros(self.n_params)  # Solo fricción
+            self.theta_hat = np.zeros(self.n_params)  # Only friction
             self.Gamma = np.eye(self.n_params) * 0.5
             
-            # Ganancias PD fijas
+            # Fixed PD gains
             self._Kp = 150.0
             self._Kd = 10.0
         
         
-        # ===== FILTROS PARA MEJORAR ESTABILIDAD =====
+        # ===== FILTERS TO IMPROVE STABILITY =====
         
-        # Filtro de paso bajo para qddot_des (reduce ruido de diferenciación numérica)
-        self.qddot_des_filtered = None  # Estado del filtro
-        self.qddot_filter_alpha = 0.8  # Factor de filtrado (0.8 = más suavizado, 0.9 = menos suavizado)
+        # Low-pass filter for qddot_des (reduces noise from numerical differentiation)
+        self.qddot_des_filtered = None  # Filter state
+        self.qddot_filter_alpha = 0.8  # Filter factor (0.8 = more smoothed, 0.9 = less smoothed)
         
-        # Filtro exponencial para suavizar parámetros adaptativos
-        self.theta_hat_smoothed = self.theta_hat.copy()  # Versión suavizada de theta_hat
-        self.theta_smooth_alpha = 0.9  # Factor de suavizado (0.9 = más suavizado, 0.95 = muy suavizado)
+        # Exponential filter to smooth adaptive parameters
+        self.theta_hat_smoothed = self.theta_hat.copy()  # Smoothed version of theta_hat
+        self.theta_smooth_alpha = 0.9  # Smoothing factor (0.9 = more smoothed, 0.95 = very smoothed)
         
-        # Historial para análisis
+        # History for analysis
         self.history = {
             'theta_hat': [],
             'theta_hat_smoothed': [],
@@ -386,7 +398,7 @@ class AdaptiveController:
     
     @property
     def Kp(self):
-        """Ganancia proporcional (adaptativa o fija según adapt_gains)."""
+        """Proportional gain (adaptive or fixed according to adapt_gains)."""
         if self.adapt_gains:
             return self.theta_hat[-2]
         else:
@@ -394,7 +406,7 @@ class AdaptiveController:
     
     @property
     def Kd(self):
-        """Ganancia derivativa (adaptativa o fija según adapt_gains)."""
+        """Derivative gain (adaptive or fixed according to adapt_gains)."""
         if self.adapt_gains:
             return self.theta_hat[-1]
         else:
@@ -405,70 +417,70 @@ class AdaptiveController:
                                   qdot: np.ndarray,
                                   data: mj.MjData) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Calcula matrices dinámicas usando MuJoCo: M(q), C(q,q̇), g(q)
+        Computes dynamic matrices using MuJoCo: M(q), C(q,q̇), g(q)
         
-        Usa mj_rne() (Recursive Newton-Euler) para calcular:
+        Uses mj_rne() (Recursive Newton-Euler) to calculate:
         τ = M(q)q̈ + C(q,q̇)q̇ + g(q)
         
         Args:
-            q: Posiciones actuales del brazo
-            qdot: Velocidades actuales del brazo
-            data: Datos MuJoCo (debe tener acceso al modelo completo)
+            q: Current arm positions
+            qdot: Current arm velocities
+            data: MuJoCo data (must have access to the complete model)
         
         Returns:
-            M: Matriz de inercia de shape (n_joints, n_joints)
-            C_qdot: Vector C(q,q̇)q̇ de shape (n_joints,)
-            g: Vector de gravedad de shape (n_joints,)
+            M: Inertia matrix of shape (n_joints, n_joints)
+            C_qdot: Vector C(q,q̇)q̇ of shape (n_joints,)
+            g: Gravity vector of shape (n_joints,)
         """
-        # Guardar estado completo del sistema
+        # Save complete system state
         q_full_orig = data.qpos.copy()
         qdot_full_orig = data.qvel.copy()
         qacc_full_orig = data.qacc.copy()
         
-        # Establecer estado del brazo en data
+        # Set arm state in data
         data.qpos[self.arm_qpos_idx] = q
         data.qvel[self.arm_qpos_idx] = qdot
         
-        # 1. Calcular g(q): fuerzas gravitacionales (con qdot=0, qddot=0)
+        # 1. Calculate g(q): gravitational forces (with qdot=0, qddot=0)
         data.qvel[:] = 0.0
         data.qacc[:] = 0.0
         mj.mj_forward(self.model, data)
-        # mj_rne calcula: τ = M(q)q̈ + C(q,q̇)q̇ + g(q)
-        # Con qdot=0, qddot=0: τ = g(q)
-        # flg_acc=1 significa incluir aceleraciones (pero están en 0)
+        # mj_rne calculates: τ = M(q)q̈ + C(q,q̇)q̇ + g(q)
+        # With qdot=0, qddot=0: τ = g(q)
+        # flg_acc=1 means include accelerations (but they are at 0)
         mj.mj_rne(self.model, data, 1, data.qfrc_inverse)
         g = data.qfrc_inverse[self.arm_qpos_idx].copy()
         
-        # 2. Calcular C(q,q̇)q̇: términos de Coriolis/centrífugos
+        # 2. Calculate C(q,q̇)q̇: Coriolis/centrifugal terms
         data.qvel[self.arm_qpos_idx] = qdot
         data.qacc[:] = 0.0
         mj.mj_forward(self.model, data)
         mj.mj_rne(self.model, data, 1, data.qfrc_inverse)
-        # Con qddot=0: τ = C(q,q̇)q̇ + g(q)
+        # With qddot=0: τ = C(q,q̇)q̇ + g(q)
         C_qdot_plus_g = data.qfrc_inverse[self.arm_qpos_idx].copy()
         C_qdot = C_qdot_plus_g - g
         
-        # 3. Calcular M(q): matriz de inercia (columna por columna usando mj_rne)
+        # 3. Calculate M(q): inertia matrix (column by column using mj_rne)
         M = np.zeros((self.n_joints, self.n_joints))
-        data.qvel[self.arm_qpos_idx] = qdot  # mantener velocidad
+        data.qvel[self.arm_qpos_idx] = qdot  # maintain velocity
         
         for j in range(self.n_joints):
-            # Calcular columna j de M usando qddot = e_j (vector unitario)
+            # Calculate column j of M using qddot = e_j (unit vector)
             qddot_unit = np.zeros(self.n_joints)
             qddot_unit[j] = 1.0
             
-            # Establecer aceleración unitaria solo en el brazo
+            # Set unit acceleration only in the arm
             data.qacc[:] = 0.0
             data.qacc[self.arm_qpos_idx] = qddot_unit
             
             mj.mj_forward(self.model, data)
             mj.mj_rne(self.model, data, 1, data.qfrc_inverse)
             # τ = M(q)q̈ + C(q,q̇)q̇ + g(q)
-            # Con q̈ = e_j: τ = M[:,j] + C(q,q̇)q̇ + g(q)
+            # With q̈ = e_j: τ = M[:,j] + C(q,q̇)q̇ + g(q)
             tau_col = data.qfrc_inverse[self.arm_qpos_idx].copy()
             M[:, j] = tau_col - C_qdot - g
         
-        # Restaurar estado original
+        # Restore original state
         data.qpos[:] = q_full_orig
         data.qvel[:] = qdot_full_orig
         data.qacc[:] = qacc_full_orig
@@ -483,31 +495,31 @@ class AdaptiveController:
                                qdot_des: np.ndarray = None,
                                data: mj.MjData = None) -> np.ndarray:
         """
-        Construye la matriz de regresión Y(q, q̇, e, ė) para FRICCIÓN y opcionalmente GANANCIAS PD.
+        Builds the regression matrix Y(q, q̇, e, ė) for FRICTION and optionally PD GAINS.
         
-        Si adapt_gains=True: θ = [b₁, b₂, ..., bₙ, Kp, Kd]
-        Si adapt_gains=False: θ = [b₁, b₂, ..., bₙ]
+        If adapt_gains=True: θ = [b₁, b₂, ..., bₙ, Kp, Kd]
+        If adapt_gains=False: θ = [b₁, b₂, ..., bₙ]
         
         Args:
-            q: Posiciones actuales
-            qdot: Velocidades actuales
-            qddot: Aceleraciones deseadas (no usado, pero necesario para compatibilidad)
-            q_des: Posiciones deseadas (para calcular error e, solo si adapt_gains=True)
-            qdot_des: Velocidades deseadas (para calcular error ė, solo si adapt_gains=True)
-            data: Datos MuJoCo (no usado aquí, pero necesario para compatibilidad)
+            q: Current positions
+            qdot: Current velocities
+            qddot: Desired accelerations (not used, but necessary for compatibility)
+            q_des: Desired positions (to calculate error e, only if adapt_gains=True)
+            qdot_des: Desired velocities (to calculate error ė, only if adapt_gains=True)
+            data: MuJoCo data (not used here, but necessary for compatibility)
         
         Returns:
-            Y: Matriz de regresión de shape (n_joints, n_params)
+            Y: Regression matrix of shape (n_joints, n_params)
         """
         Y = np.zeros((self.n_joints, self.n_params))
         
-        # Columnas 0 a n-1: Fricción (1 por joint)
+        # Columns 0 to n-1: Friction (1 per joint)
         for i in range(self.n_joints):
-            Y[i, i] = qdot[i]  # Fricción del joint i es proporcional a su velocidad
+            Y[i, i] = qdot[i]  # Friction of joint i is proportional to its velocity
         
-        # Si adaptamos ganancias, agregar columnas para Kp y Kd
+        # If we adapt gains, add columns for Kp and Kd
         if self.adapt_gains:
-            # Calcular errores
+            # Calculate errors
             if q_des is not None and qdot_des is not None:
                 e = q_des - q
                 edot = qdot_des - qdot
@@ -515,31 +527,31 @@ class AdaptiveController:
                 e = np.zeros(self.n_joints)
                 edot = np.zeros(self.n_joints)
             
-            # Columna n: Ganancias proporcionales Kp (global)
+            # Column n: Proportional gains Kp (global)
             Y[:, self.n_joints] = e
             
-            # Columna n+1: Ganancias derivativas Kd (global)
+            # Column n+1: Derivative gains Kd (global)
             Y[:, self.n_joints + 1] = edot
         
         return Y
     
     def filter_qddot_des(self, qddot_des: np.ndarray) -> np.ndarray:
         """
-        Filtra qddot_des usando filtro de paso bajo para reducir ruido.
+        Filters qddot_des using low-pass filter to reduce noise.
         
-        Filtro exponencial: q̈_filtrado = α * q̈_filtrado_anterior + (1-α) * q̈_actual
+        Exponential filter: q̈_filtered = α * q̈_filtered_previous + (1-α) * q̈_current
         
         Args:
-            qddot_des: Aceleración deseada (puede tener ruido)
+            qddot_des: Desired acceleration (may have noise)
         
         Returns:
-            qddot_des_filtered: Aceleración filtrada
+            qddot_des_filtered: Filtered acceleration
         """
         if self.qddot_des_filtered is None:
-            # Primera vez: inicializar con valor actual
+            # First time: initialize with current value
             self.qddot_des_filtered = qddot_des.copy()
         else:
-            # Filtro de paso bajo exponencial
+            # Exponential low-pass filter
             self.qddot_des_filtered = (self.qddot_filter_alpha * self.qddot_des_filtered + 
                                       (1.0 - self.qddot_filter_alpha) * qddot_des)
         
@@ -553,67 +565,67 @@ class AdaptiveController:
                        qddot_des: np.ndarray,
                        data: mj.MjData = None) -> tuple[np.ndarray, float]:
         """
-        Calcula el torque de control adaptativo usando masas/inercias conocidas.
+        Calculates adaptive control torque using known masses/inertias.
         
         Control: τ = M_known(q)q̈_des + C_known(q,q̇)q̇ + g_known(q) + Y_friction*θ̂_friction + Kp*e + Kd*ė
         
-        Donde:
-        - M_known, C_known, g_known: calculados con MuJoCo usando masas/inercias conocidas
-        - Y_friction*θ̂_friction: compensación adaptativa de fricción
+        Where:
+        - M_known, C_known, g_known: calculated with MuJoCo using known masses/inertias
+        - Y_friction*θ̂_friction: adaptive friction compensation
         
         Args:
-            q: Posiciones actuales
-            qdot: Velocidades actuales
-            q_des: Posiciones deseadas
-            qdot_des: Velocidades deseadas
-            qddot_des: Aceleraciones deseadas (se filtrarán para reducir ruido)
-            data: Datos MuJoCo (requerido para calcular dinámicas)
+            q: Current positions
+            qdot: Current velocities
+            q_des: Desired positions
+            qdot_des: Desired velocities
+            qddot_des: Desired accelerations (will be filtered to reduce noise)
+            data: MuJoCo data (required to calculate dynamics)
         
         Returns:
-            tau: Torques de control
-            V: Valor de la función de Lyapunov
+            tau: Control torques
+            V: Lyapunov function value
         """
-        # Errores
+        # Errors
         e = q_des - q
         edot = qdot_des - qdot
         
-        # Filtrar qddot_des para reducir ruido de diferenciación numérica
+        # Filter qddot_des to reduce noise from numerical differentiation
         qddot_des_filtered = self.filter_qddot_des(qddot_des)
         
-        # Calcular dinámicas usando MuJoCo (con masas/inercias del modelo)
+        # Calculate dynamics using MuJoCo (with model masses/inertias)
         if data is not None and self.model is not None and self.arm_qpos_idx is not None:
             M, C_qdot, g = self.compute_dynamics_matrices(q, qdot, data)
             
-            # Compensación dinámica usando masas/inercias conocidas (del modelo MuJoCo)
+            # Dynamic compensation using known masses/inertias (from MuJoCo model)
             # τ_dynamic = M(q)q̈_des + C(q,q̇)q̇ + g(q)
-            # Usar qddot_des filtrado para reducir ruido
+            # Use filtered qddot_des to reduce noise
             tau_dynamic_known = M @ qddot_des_filtered + C_qdot + g
         else:
-            # Fallback si no hay acceso a MuJoCo
+            # Fallback if no access to MuJoCo
             tau_dynamic_known = np.zeros(self.n_joints)
         
-        # Construir matriz de regresión (usar qddot_des filtrado)
+        # Build regression matrix (use filtered qddot_des)
         Y = self.build_regression_matrix(q, qdot, qddot_des_filtered, q_des, qdot_des, data)
         
-        # Compensación adaptativa
+        # Adaptive compensation
         if self.adapt_gains:
             # τ_adaptive = Y * θ̂ = Y_friction * θ̂_friction + Y_Kp * Kp + Y_Kd * Kd
-            # Las ganancias PD ya están incluidas en tau_adaptive
+            # PD gains are already included in tau_adaptive
             tau_adaptive = Y @ self.theta_hat
             tau = tau_dynamic_known + tau_adaptive
         else:
-            # Solo fricción adaptativa, ganancias PD fijas
-            tau_friction = Y @ self.theta_hat  # Solo fricción
-            tau_pd = self.Kp * e + self.Kd * edot  # Ganancias PD fijas
+            # Only adaptive friction, fixed PD gains
+            tau_friction = Y @ self.theta_hat  # Only friction
+            tau_pd = self.Kp * e + self.Kd * edot  # Fixed PD gains
             tau = tau_dynamic_known + tau_friction + tau_pd
         
-        # Función de Lyapunov completa
+        # Complete Lyapunov function
         # V = ½(eᵀe + ėᵀė + θ̃ᵀΓ⁻¹θ̃)
-        # Simplificamos asumiendo θ̃ ≈ 0 (parámetros bien estimados)
+        # We simplify by assuming θ̃ ≈ 0 (well-estimated parameters)
         V = 0.5 * (np.dot(e, e) + np.dot(edot, edot))
-        # Término de parámetros (θ̃ᵀΓ⁻¹θ̃) - asumimos que θ̃ es pequeño
+        # Parameter term (θ̃ᵀΓ⁻¹θ̃) - we assume θ̃ is small
         theta_tilde_norm = np.dot(self.theta_hat, np.linalg.solve(self.Gamma, self.theta_hat))
-        V += 0.5 * theta_tilde_norm * 0.01  # Factor pequeño para balancear
+        V += 0.5 * theta_tilde_norm * 0.01  # Small factor to balance
         
         return tau, V, Y
     
@@ -623,51 +635,51 @@ class AdaptiveController:
                                   Y: np.ndarray,
                                   lambda_param: float = 1.0):
         """
-        Actualiza los parámetros adaptativos usando ley adaptativa con suavizado.
+        Updates adaptive parameters using adaptive law with smoothing.
         
-        Ley adaptativa: θ̂̇ = -Γ * Yᵀ * (e + λ*ė)
-        Suavizado: θ̂_smooth = α * θ̂_smooth_old + (1-α) * θ̂_new
+        Adaptive law: θ̂̇ = -Γ * Yᵀ * (e + λ*ė)
+        Smoothing: θ̂_smooth = α * θ̂_smooth_old + (1-α) * θ̂_new
         
-        Esto garantiza V̇ ≤ 0 (estabilidad asintótica) y reduce oscilaciones.
+        This guarantees V̇ ≤ 0 (asymptotic stability) and reduces oscillations.
         
         Args:
-            e: Error de posición
-            edot: Error de velocidad
-            Y: Matriz de regresión
-            lambda_param: Factor de mezcla (típicamente 1.0)
+            e: Position error
+            edot: Velocity error
+            Y: Regression matrix
+            lambda_param: Mixing factor (typically 1.0)
         """
-        # Ley adaptativa estándar
+        # Standard adaptive law
         # θ̂̇ = -Γ * Yᵀ * (e + λ*ė)
         error_vector = e + lambda_param * edot
         
-        # Calcular actualización de parámetros
+        # Calculate parameter update
         dtheta = -self.Gamma @ (Y.T @ error_vector) * self.dt
         
-        # Actualizar parámetros sin suavizar primero
+        # Update parameters without smoothing first
         theta_hat_new = self.theta_hat + dtheta
         
-        # Aplicar límites antes de suavizar
-        # Fricción (puede ser positiva o negativa dependiendo del modelo)
+        # Apply limits before smoothing
+        # Friction (can be positive or negative depending on model)
         for i in range(self.n_joints):
-            theta_hat_new[i] = np.clip(theta_hat_new[i], -50.0, 50.0)  # fricción
+            theta_hat_new[i] = np.clip(theta_hat_new[i], -50.0, 50.0)  # friction
         
-        # Si adaptamos ganancias, aplicar límites
+        # If we adapt gains, apply limits
         if self.adapt_gains:
-            # Ganancias PD deben ser positivas
-            theta_hat_new[-2] = np.clip(theta_hat_new[-2], 10.0, 500.0)  # Kp: mínimo 10, máximo 500
-            theta_hat_new[-1] = np.clip(theta_hat_new[-1], 1.0, 100.0)   # Kd: mínimo 1, máximo 100
+            # PD gains must be positive
+            theta_hat_new[-2] = np.clip(theta_hat_new[-2], 10.0, 500.0)  # Kp: min 10, max 500
+            theta_hat_new[-1] = np.clip(theta_hat_new[-1], 1.0, 100.0)   # Kd: min 1, max 100
         
-        # Suavizar parámetros usando filtro exponencial
+        # Smooth parameters using exponential filter
         # θ̂_smooth = α * θ̂_smooth_old + (1-α) * θ̂_new
-        # Esto evita cambios bruscos y oscilaciones
+        # This avoids abrupt changes and oscillations
         self.theta_hat_smoothed = (self.theta_smooth_alpha * self.theta_hat_smoothed + 
                                    (1.0 - self.theta_smooth_alpha) * theta_hat_new)
         
-        # Usar la versión suavizada
+        # Use smoothed version
         self.theta_hat = self.theta_hat_smoothed.copy()
     
     def log_state(self, V: float, Y: np.ndarray):
-        """Guarda el estado actual para análisis."""
+        """Saves current state for analysis."""
         self.history['theta_hat'].append(self.theta_hat.copy())
         self.history['theta_hat_smoothed'].append(self.theta_hat_smoothed.copy())
         self.history['lyapunov'].append(V)
@@ -675,7 +687,7 @@ class AdaptiveController:
 
 
 # ==========================
-# CONTROLADOR PD EN ESPACIO DE JUNTAS (ORIGINAL)
+# PD CONTROLLER IN JOINT SPACE (ORIGINAL)
 # ==========================
 
 def apply_joint_pd_control(model: mj.MjModel,
@@ -687,22 +699,22 @@ def apply_joint_pd_control(model: mj.MjModel,
                            Kp: float,
                            Kd: float):
     """
-    PD simple en espacio de juntas:
+    Simple PD in joint space:
         tau = Kp (q_des - q) - Kd * qdot
 
-    Escribe los torques en data.ctrl[arm_act_idx], respetando actuator_ctrlrange.
+    Writes torques to data.ctrl[arm_act_idx], respecting actuator_ctrlrange.
     """
-    # estado actual
+    # current state
     q = data.qpos[arm_qpos_idx]
     qdot = data.qvel[arm_dof_idx]
 
-    # TODO: si tienes qdot_des, se podría usar (Kp*(q_des-q)+Kd*(qdot_des-qdot))
+    # TODO: if you have qdot_des, could use (Kp*(q_des-q)+Kd*(qdot_des-qdot))
     q_error = q_des - q
     qdot_error = -qdot
 
     tau = Kp * q_error + Kd * qdot_error
 
-    # escribir en ctrl con saturación según ctrlrange
+    # write to ctrl with saturation according to ctrlrange
     for i, act_id in enumerate(arm_act_idx):
         ctrl_min, ctrl_max = model.actuator_ctrlrange[act_id]
         u = np.clip(tau[i], ctrl_min, ctrl_max)
@@ -710,7 +722,7 @@ def apply_joint_pd_control(model: mj.MjModel,
 
 
 # ==========================
-# CONTROLADOR ADAPTATIVO COMPLETO EN ESPACIO DE JUNTAS
+# COMPLETE ADAPTIVE CONTROLLER IN JOINT SPACE
 # ==========================
 
 def apply_adaptive_control(model: mj.MjModel,
@@ -723,38 +735,38 @@ def apply_adaptive_control(model: mj.MjModel,
                            qddot_des: np.ndarray,
                            controller: AdaptiveController):
     """
-    Control adaptativo completo en espacio de juntas usando ecuaciones del movimiento.
+    Complete adaptive control in joint space using equations of motion.
     
     Control: τ = Y(q, q̇, q̈_des) * θ̂ + Kp*e + Kd*ė
-    Ley adaptativa: θ̂̇ = -Γ * Yᵀ * (e + λ*ė)
+    Adaptive law: θ̂̇ = -Γ * Yᵀ * (e + λ*ė)
     
     Args:
-        model: Modelo MuJoCo
-        data: Datos MuJoCo
-        arm_qpos_idx: Índices de qpos del brazo
-        arm_dof_idx: Índices de qvel del brazo
-        arm_act_idx: Índices de actuadores
-        q_des: Posiciones deseadas
-        qdot_des: Velocidades deseadas
-        qddot_des: Aceleraciones deseadas
-        controller: Instancia de AdaptiveController
+        model: MuJoCo model
+        data: MuJoCo data
+        arm_qpos_idx: Arm qpos indices
+        arm_dof_idx: Arm qvel indices
+        arm_act_idx: Actuator indices
+        q_des: Desired positions
+        qdot_des: Desired velocities
+        qddot_des: Desired accelerations
+        controller: AdaptiveController instance
     """
-    # Estado actual
+    # Current state
     q = data.qpos[arm_qpos_idx]
     qdot = data.qvel[arm_dof_idx]
     
-    # Calcular control adaptativo completo
+    # Calculate complete adaptive control
     tau, V, Y = controller.compute_control(q, qdot, q_des, qdot_des, qddot_des, data)
     
-    # Actualizar parámetros adaptativos usando ley adaptativa
+    # Update adaptive parameters using adaptive law
     e = q_des - q
     edot = qdot_des - qdot
     controller.update_adaptive_parameters(e, edot, Y, lambda_param=1.0)
     
-    # Log del estado (opcional, para análisis)
+    # Log state (optional, for analysis)
     controller.log_state(V, Y)
     
-    # Escribir en ctrl con saturación
+    # Write to ctrl with saturation
     for i, act_id in enumerate(arm_act_idx):
         ctrl_min, ctrl_max = model.actuator_ctrlrange[act_id]
         u = np.clip(tau[i], ctrl_min, ctrl_max)
@@ -768,20 +780,20 @@ def apply_adaptive_control(model: mj.MjModel,
 # ==========================
 
 def main():
-    # 1) cargar modelo y data
+    # 1) load model and data
     model = mj.MjModel.from_xml_path(SLAVE_XML_PATH)
     data = mj.MjData(model)
 
-    # (Opcional) imprimir todos los joints para rellenar los nombres:
+    # (Optional) print all joints to fill in names:
     # print_all_joints(model)
     # return
 
     if not LEFT_ARM_JOINT_NAMES or not RIGHT_ARM_JOINT_NAMES:
         raise RuntimeError(
-            "Debes rellenar LEFT_ARM_JOINT_NAMES y RIGHT_ARM_JOINT_NAMES con los nombres de joints de tus brazos."
+            "You must fill LEFT_ARM_JOINT_NAMES and RIGHT_ARM_JOINT_NAMES with the joint names of your arms."
         )
 
-    # 2) construir índices para cada brazo
+    # 2) build indices for each arm
     left_qpos_idx, left_dof_idx, left_act_idx = build_arm_maps(model, LEFT_ARM_JOINT_NAMES)
     right_qpos_idx, right_dof_idx, right_act_idx = build_arm_maps(model, RIGHT_ARM_JOINT_NAMES)
 
@@ -796,31 +808,31 @@ def main():
     print(f"Right arm act idx:  {right_act_idx}")
     print()
 
-    # 3) Configuración de trayectoria
+    # 3) Trajectory configuration
     dt = model.opt.timestep
-    USE_SINUSOIDAL_TEST = False # Cambia a False para usar trayectoria del archivo NPZ
+    USE_SINUSOIDAL_TEST = False # Change to False to use trajectory from NPZ file
     
     if USE_SINUSOIDAL_TEST:
-        print("📐 Usando TRAYECTORIA SINUSOIDAL DE PRUEBA (solo primer joint)")
-        print("   - Solo el primer joint (shoulder_pitch) de cada brazo se mueve")
-        print("   - Todos los demás joints permanecen fijos en 0")
-        print("   - Esto aísla el problema del controlador")
-        # No cargar trayectoria del archivo
+        print("📐 Using SINUSOIDAL TEST TRAJECTORY (only first joint)")
+        print("   - Only the first joint (shoulder_pitch) of each arm moves")
+        print("   - All other joints remain fixed at 0")
+        print("   - This isolates the controller problem")
+        # Don't load trajectory from file
         _trajectory_data = None
     else:
-        print("📂 Cargando trayectoria desde archivo NPZ")
+        print("📂 Loading trajectory from NPZ file")
         try:
             load_trajectory_from_npz(TRAJECTORY_NPZ_PATH, left_qpos_idx, right_qpos_idx, dt)
         except FileNotFoundError as e:
             print(f"⚠️  {e}")
-            print("   Cambiando a trayectoria sinusoidal de prueba...")
+            print("   Switching to sinusoidal test trajectory...")
             USE_SINUSOIDAL_TEST = True
             _trajectory_data = None
         except Exception as e:
-            print(f"❌ Error cargando trayectoria: {e}")
+            print(f"❌ Error loading trajectory: {e}")
             raise
 
-    # 4) inicializar la pose (opcional: poner qpos inicial = trayectoria deseada en t=0)
+    # 4) initialize pose (optional: set initial qpos = desired trajectory at t=0)
     if USE_SINUSOIDAL_TEST:
         q_left_des_0, q_right_des_0 = desired_arm_trajectories_sinusoidal_shoulders(0.0, n_left, n_right)
     else:
@@ -829,46 +841,46 @@ def main():
     data.qpos[right_qpos_idx] = q_right_des_0
     mj.mj_forward(model, data)
 
-    # 5) parámetros de simulación
-    # sim_duration se ajusta automáticamente a la duración de la trayectoria cargada
+    # 5) simulation parameters
+    # sim_duration automatically adjusts to the duration of the loaded trajectory
     global _trajectory_duration
     if USE_SINUSOIDAL_TEST:
-        sim_duration = 20.0  # Duración fija para prueba sinusoidal
+        sim_duration = 20.0  # Fixed duration for sinusoidal test
     else:
         sim_duration = _trajectory_duration if _trajectory_duration is not None else 20.0
-    print(f"⏱️  Duración de simulación: {sim_duration:.3f} s")
+    print(f"⏱️  Simulation duration: {sim_duration:.3f} s")
     
-    # ===== ELECCIÓN DE CONTROLADOR =====
-    USE_ADAPTIVE_CONTROL = True  # Cambia a False para usar PD estático
-    ADAPT_GAINS = False  # Cambia a True para adaptar ganancias PD (Kp, Kd)
+    # ===== CONTROLLER SELECTION =====
+    USE_ADAPTIVE_CONTROL = True  # Change to False to use static PD
+    ADAPT_GAINS = False  # Change to True to adapt PD gains (Kp, Kd)
     
     if USE_ADAPTIVE_CONTROL:
         if ADAPT_GAINS:
-            print("🎯 Usando CONTROL ADAPTATIVO (Masas/Inercias conocidas, fricción + ganancias PD adaptativas)")
+            print("🎯 Using ADAPTIVE CONTROL (Known masses/inertias, friction + adaptive PD gains)")
         else:
-            print("🎯 Usando CONTROL ADAPTATIVO (Masas/Inercias conocidas, fricción adaptativa, ganancias PD fijas)")
+            print("🎯 Using ADAPTIVE CONTROL (Known masses/inertias, adaptive friction, fixed PD gains)")
         
-        # ===== CONFIGURACIÓN DE PARÁMETROS CONOCIDOS =====
-        # Si conoces las masas e inercias del robot, especifícalas aquí
-        # De lo contrario, se usarán valores por defecto extraídos del modelo MuJoCo
+        # ===== KNOWN PARAMETERS CONFIGURATION =====
+        # If you know the robot's masses and inertias, specify them here
+        # Otherwise, default values extracted from the MuJoCo model will be used
         
-        # Masas conocidas por joint (kg) - EJEMPLO: ajusta según tu robot
-        # Para 7 joints del brazo: [shoulder_pitch, shoulder_roll, shoulder_yaw, elbow, wrist_roll, wrist_pitch, wrist_yaw]
-        left_known_masses = None  # None = usar valores por defecto del modelo
+        # Known masses per joint (kg) - EXAMPLE: adjust according to your robot
+        # For 7 arm joints: [shoulder_pitch, shoulder_roll, shoulder_yaw, elbow, wrist_roll, wrist_pitch, wrist_yaw]
+        left_known_masses = None  # None = use default values from model
         right_known_masses = None
         
-        # Inercias conocidas por joint (kg·m²) - EJEMPLO: ajusta según tu robot
-        left_known_inertias = None  # None = usar valores por defecto del modelo
+        # Known inertias per joint (kg·m²) - EXAMPLE: adjust according to your robot
+        left_known_inertias = None  # None = use default values from model
         right_known_inertias = None
         
-        # Si quieres especificar valores conocidos, descomenta y ajusta:
+        # If you want to specify known values, uncomment and adjust:
         # left_known_masses = np.array([2.5, 1.8, 1.2, 0.8, 0.3, 0.2, 0.1])  # kg
         # left_known_inertias = np.array([0.05, 0.03, 0.02, 0.01, 0.005, 0.003, 0.001])  # kg·m²
         # right_known_masses = np.array([2.5, 1.8, 1.2, 0.8, 0.3, 0.2, 0.1])  # kg
         # right_known_inertias = np.array([0.05, 0.03, 0.02, 0.01, 0.005, 0.003, 0.001])  # kg·m²
         
-        # Inicializar controladores adaptativos para cada brazo
-        # Ahora usa masas/inercias conocidas (o valores por defecto del modelo MuJoCo)
+        # Initialize adaptive controllers for each arm
+        # Now uses known masses/inertias (or default values from MuJoCo model)
         left_adaptive_ctrl = AdaptiveController(n_left, dt, model, left_qpos_idx, left_dof_idx,
                                                 known_masses=left_known_masses,
                                                 known_inertias=left_known_inertias,
@@ -879,50 +891,50 @@ def main():
                                                  adapt_gains=ADAPT_GAINS)
         
         if ADAPT_GAINS:
-            print(f"   Ganancias PD iniciales: Kp={left_adaptive_ctrl.Kp:.1f}, Kd={left_adaptive_ctrl.Kd:.1f} (adaptativas)")
-            print(f"   Parámetros adaptativos: {left_adaptive_ctrl.n_params} por brazo ({n_left} fricción + 2 ganancias PD)")
+            print(f"   Initial PD gains: Kp={left_adaptive_ctrl.Kp:.1f}, Kd={left_adaptive_ctrl.Kd:.1f} (adaptive)")
+            print(f"   Adaptive parameters: {left_adaptive_ctrl.n_params} per arm ({n_left} friction + 2 PD gains)")
         else:
-            print(f"   Ganancias PD fijas: Kp={left_adaptive_ctrl.Kp:.1f}, Kd={left_adaptive_ctrl.Kd:.1f}")
-            print(f"   Parámetros adaptativos: {left_adaptive_ctrl.n_params} por brazo (solo fricción)")
-        print(f"   Masas conocidas (fijas): {left_adaptive_ctrl.known_masses}")
-        print(f"   Inercias conocidas (fijas): {left_adaptive_ctrl.known_inertias}")
+            print(f"   Fixed PD gains: Kp={left_adaptive_ctrl.Kp:.1f}, Kd={left_adaptive_ctrl.Kd:.1f}")
+            print(f"   Adaptive parameters: {left_adaptive_ctrl.n_params} per arm (only friction)")
+        print(f"   Known masses (fixed): {left_adaptive_ctrl.known_masses}")
+        print(f"   Known inertias (fixed): {left_adaptive_ctrl.known_inertias}")
     else:
-        print("🎯 Usando CONTROL PD ESTÁTICO")
-        Kp = 80.0            # ganancia proporcional (ajusta según necesites)
-        Kd = 5.0             # ganancia derivativa
+        print("🎯 Using STATIC PD CONTROL")
+        Kp = 80.0            # proportional gain (adjust as needed)
+        Kd = 5.0             # derivative gain
     
-    # Variables para calcular qdot_des y qddot_des por diferenciación numérica
+    # Variables to calculate qdot_des and qddot_des by numerical differentiation
     q_left_des_prev = None
     q_right_des_prev = None
     qdot_left_des_prev = None
     qdot_right_des_prev = None
     t_prev = 0.0
 
-    # para imprimir errores cada N pasos
+    # to print errors every N steps
     print_every = 20
     step_count = 0
 
-    # 5) lanzar viewer pasivo
+    # 5) launch passive viewer
     with mjviewer.launch_passive(model, data) as viewer:
         start_wall = time.time()
         while viewer.is_running() and (data.time < sim_duration):
             step_start = time.time()
 
-            # 5.1) obtener trayectoria deseada en este tiempo de simulación
+            # 5.1) get desired trajectory at this simulation time
             t = data.time
             if USE_SINUSOIDAL_TEST:
                 q_left_des, q_right_des = desired_arm_trajectories_sinusoidal_shoulders(t, n_left, n_right)
             else:
                 q_left_des, q_right_des = desired_arm_trajectories(t, n_left, n_right)
             
-            # Calcular velocidad y aceleración deseadas por diferenciación numérica
+            # Calculate desired velocity and acceleration by numerical differentiation
             if q_left_des_prev is not None and t > t_prev:
                 dt_traj = t - t_prev
-                # Velocidad deseada
+                # Desired velocity
                 qdot_left_des = (q_left_des - q_left_des_prev) / dt_traj
                 qdot_right_des = (q_right_des - q_right_des_prev) / dt_traj
                 
-                # Aceleración deseada
+                # Desired acceleration
                 if qdot_left_des_prev is not None:
                     qddot_left_des = (qdot_left_des - qdot_left_des_prev) / dt_traj
                     qddot_right_des = (qdot_right_des - qdot_right_des_prev) / dt_traj
@@ -935,16 +947,16 @@ def main():
                 qddot_left_des = np.zeros(n_left)
                 qddot_right_des = np.zeros(n_right)
             
-            # Guardar para siguiente iteración
+            # Save for next iteration
             q_left_des_prev = q_left_des.copy()
             q_right_des_prev = q_right_des.copy()
             qdot_left_des_prev = qdot_left_des.copy()
             qdot_right_des_prev = qdot_right_des.copy()
             t_prev = t
 
-            # 5.2) aplicar control a cada brazo
+            # 5.2) apply control to each arm
             if USE_ADAPTIVE_CONTROL:
-                # Control adaptativo completo (usa ecuaciones del movimiento)
+                # Complete adaptive control (uses equations of motion)
                 V_left = apply_adaptive_control(model, data,
                                                  left_qpos_idx, left_dof_idx, left_act_idx,
                                                  q_left_des, qdot_left_des, qddot_left_des,
@@ -954,7 +966,7 @@ def main():
                                                   q_right_des, qdot_right_des, qddot_right_des,
                                                   right_adaptive_ctrl)
             else:
-                # Control PD estático
+                # Static PD control
                 apply_joint_pd_control(model, data,
                                        left_qpos_idx, left_dof_idx, left_act_idx,
                                        q_left_des, Kp, Kd)
@@ -962,10 +974,10 @@ def main():
                                        right_qpos_idx, right_dof_idx, right_act_idx,
                                        q_right_des, Kp, Kd)
 
-            # 5.3) avanzar la física
+            # 5.3) advance physics
             mj.mj_step(model, data)
 
-            # 5.4) calcular y mostrar errores de tracking (norma-2 por brazo)
+            # 5.4) calculate and show tracking errors (L2 norm per arm)
             if step_count % print_every == 0:
                 q_left = data.qpos[left_qpos_idx]
                 q_right = data.qpos[right_qpos_idx]
@@ -973,9 +985,9 @@ def main():
                 err_right = np.linalg.norm(q_right - q_right_des)
                 
                 if USE_ADAPTIVE_CONTROL:
-                    # Mostrar parámetros adaptativos: fricción y ganancias PD
-                    # Fricción: primeros n_joints elementos de theta_hat
-                    b_left_avg = np.mean(left_adaptive_ctrl.theta_hat[:left_adaptive_ctrl.n_joints])  # Promedio de fricción
+                    # Show adaptive parameters: friction and PD gains
+                    # Friction: first n_joints elements of theta_hat
+                    b_left_avg = np.mean(left_adaptive_ctrl.theta_hat[:left_adaptive_ctrl.n_joints])  # Average friction
                     b_right_avg = np.mean(right_adaptive_ctrl.theta_hat[:right_adaptive_ctrl.n_joints])
                     print(f"t = {t:6.3f}  |  ||e_left|| = {err_left:8.5f} rad  |  ||e_right|| = {err_right:8.5f} rad")
                     print(f"         b_left={b_left_avg:6.3f}, Kp_left={left_adaptive_ctrl.Kp:6.1f}, Kd_left={left_adaptive_ctrl.Kd:5.1f}  |  V_left={V_left:.6f}")
@@ -985,16 +997,16 @@ def main():
 
             step_count += 1
 
-            # 5.5) actualizar viewer
+            # 5.5) update viewer
             viewer.sync()
 
-            # 5.6) mantener ritmo ~tiempo real
+            # 5.6) maintain ~real-time rate
             time_spent = time.time() - step_start
             time_until_next_step = dt - time_spent
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
 
-    print("Simulación terminada.")
+    print("Simulation finished.")
 
 
 if __name__ == "__main__":

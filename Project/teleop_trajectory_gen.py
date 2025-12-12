@@ -115,9 +115,11 @@ def save_trajectory(trajectory_log: dict, output_path: Path, model: mujoco.MjMod
     mocap_log = np.stack(trajectory_log['mocap'], axis=0) # (T, 14) - 2 mocap bodies
     
     T = qpos_log.shape[0]
-    duration = T / 50.0  # 50 Hz recording rate
+    recording_dt = 1.0 / 200.0  # 200 Hz recording rate = 0.005 seconds
+    duration = T * recording_dt
     
     print(f"   Trajectory length: {T} timesteps")
+    print(f"   Recording rate: 200 Hz (dt = {recording_dt:.6f} s)")
     print(f"   Duration: {duration:.3f} seconds")
     print(f"   qpos shape: {qpos_log.shape}")
     print(f"   qvel shape: {qvel_log.shape}")
@@ -141,12 +143,15 @@ def save_trajectory(trajectory_log: dict, output_path: Path, model: mujoco.MjMod
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Save to NPZ file
+    # Store recording dt so follower.py can use the correct timestep
+    recording_dt = 1.0 / 200.0  # 200 Hz recording rate
     np.savez(
         output_path,
         qpos=qpos_log,
         qvel=qvel_log,
         ctrl=ctrl_log,
         mocap=mocap_log,
+        dt=recording_dt,  # Store actual recording timestep
     )
     
     print(f"✅ Trajectory saved successfully!")
@@ -378,11 +383,11 @@ def main(args):
 
     rate = RateLimiter(frequency=200.0, warn=False)
     
-    # Setup trajectory recording at 50 Hz
-    # Since loop runs at 200 Hz, record every 4 iterations (200/50 = 4)
+    # Setup trajectory recording at 200 Hz
+    # Record every iteration (loop runs at 200 Hz)
     recording_enabled = False
     recording_counter = 0
-    recording_interval = int(200.0 / 50.0)  # Record every 4 iterations
+    recording_interval = int(200.0 / 200.0)  # Record every iteration (200 Hz)
     trajectory_log = {
         'qpos': [],
         'qvel': [],
@@ -405,7 +410,7 @@ def main(args):
                 'mocap': [],
             }
             print(f"\n📹 Recording STARTED")
-            print(f"   Recording rate: 50 Hz (every {recording_interval} iterations at 200 Hz)")
+            print(f"   Recording rate: 200 Hz (every {recording_interval} iteration at 200 Hz)")
             print(f"   Press 's' again to stop recording")
         else:
             # Stop recording
@@ -481,7 +486,7 @@ def main(args):
             data.qpos[dof_ids] = configuration.q[dof_ids]
             mujoco.mj_forward(model, data)
 
-            # Record trajectory at 50 Hz (every 4 iterations at 200 Hz)
+            # Record trajectory at 200 Hz (every iteration)
             if recording_enabled:
                 if recording_start_time is None:
                     recording_start_time = time.time()
