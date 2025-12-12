@@ -15,6 +15,7 @@ The script maps Vision Pro hand tracking to G1's 7-DOF arms:
 import os
 import sys
 import time
+import threading
 from pathlib import Path
 from typing import List, Optional, Sequence
 from datetime import datetime
@@ -151,6 +152,47 @@ def save_trajectory(trajectory_log: dict, output_path: Path, model: mujoco.MjMod
     print(f"✅ Trajectory saved successfully!")
     print(f"   File: {output_path}")
     print(f"   Size: {output_path.stat().st_size / 1024 / 1024:.2f} MB")
+
+
+def setup_keyboard_listener(key_pressed_callback):
+    """
+    Set up a non-blocking keyboard listener in a separate thread.
+    Detects 's' key presses and calls the callback.
+    """
+    import select
+    import termios
+    import tty
+    
+    # Check if stdin is a terminal
+    if not sys.stdin.isatty():
+        raise OSError("stdin is not a terminal")
+    
+    def read_key():
+        # Set terminal to raw mode
+        old_settings = termios.tcgetattr(sys.stdin)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            while True:
+                try:
+                    if select.select([sys.stdin], [], [], 0.1)[0]:
+                        char = sys.stdin.read(1)
+                        if char == 's' or char == 'S':
+                            key_pressed_callback()
+                        elif char == '\x03':  # Ctrl+C
+                            break
+                except (OSError, ValueError):
+                    # Terminal might have been closed or changed
+                    break
+        finally:
+            # Restore terminal settings
+            try:
+                termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+            except:
+                pass
+    
+    thread = threading.Thread(target=read_key, daemon=True)
+    thread.start()
+    return thread
 
 
 def compensate_gravity(
@@ -338,7 +380,7 @@ def main(args):
     
     # Setup trajectory recording at 50 Hz
     # Since loop runs at 200 Hz, record every 4 iterations (200/50 = 4)
-    recording_enabled = args.record
+    recording_enabled = False
     recording_counter = 0
     recording_interval = int(200.0 / 50.0)  # Record every 4 iterations
     trajectory_log = {
@@ -349,10 +391,49 @@ def main(args):
     }
     recording_start_time = None
     
-    if recording_enabled:
-        print(f"📹 Recording enabled: {args.output_path}")
-        print(f"   Recording rate: 50 Hz (every {recording_interval} iterations at 200 Hz)")
-        print(f"   Press Ctrl+C to stop and save trajectory")
+    # Setup keyboard listener for 's' key to toggle recording
+    def toggle_recording():
+        nonlocal recording_enabled, recording_start_time, trajectory_log
+        if not recording_enabled:
+            # Start recording
+            recording_enabled = True
+            recording_start_time = time.time()
+            trajectory_log = {
+                'qpos': [],
+                'qvel': [],
+                'ctrl': [],
+                'mocap': [],
+            }
+            print(f"\n📹 Recording STARTED")
+            print(f"   Recording rate: 50 Hz (every {recording_interval} iterations at 200 Hz)")
+            print(f"   Press 's' again to stop recording")
+        else:
+            # Stop recording
+            recording_enabled = False
+            print(f"\n🛑 Recording STOPPED")
+            if len(trajectory_log['qpos']) > 0:
+                # Save trajectory
+                if args.output_path is None:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    output_dir = Path(_HERE) / "trajectories"
+                    output_dir.mkdir(exist_ok=True)
+                    output_path = output_dir / f"traj_{timestamp}.npz"
+                else:
+                    output_path = Path(args.output_path)
+                save_trajectory(trajectory_log, output_path, model)
+            else:
+                print("   No data recorded")
+    
+    # Start keyboard listener
+    try:
+        setup_keyboard_listener(toggle_recording)
+        print(f"\n⌨️  Keyboard controls:")
+        print(f"   Press 's' to start/stop recording")
+        print(f"   Press Ctrl+C to exit")
+    except Exception as e:
+        print(f"⚠️  Could not set up keyboard listener: {e}")
+        print(f"   Recording will be disabled. Install termios support or use --record flag")
+        recording_enabled = False
 
     try:
         while True:
@@ -436,7 +517,14 @@ def main(args):
         
         # Save trajectory if recording was enabled
         if recording_enabled and len(trajectory_log['qpos']) > 0:
-            save_trajectory(trajectory_log, args.output_path, model)
+            if args.output_path is None:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                output_dir = Path(_HERE) / "trajectories"
+                output_dir.mkdir(exist_ok=True)
+                output_path = output_dir / f"traj_{timestamp}.npz"
+            else:
+                output_path = Path(args.output_path)
+            save_trajectory(trajectory_log, output_path, model)
 
 
 if __name__ == "__main__":
@@ -446,25 +534,15 @@ if __name__ == "__main__":
     )
     parser.add_argument("--ip", type=str, required=True, help="Vision Pro IP address")
     parser.add_argument(
-        "--record",
-        action="store_true",
-        help="Enable trajectory recording at 50 Hz"
-    )
-    parser.add_argument(
         "--output",
         type=str,
         default=None,
-        help="Output path for trajectory NPZ file (default: Project/trajectories/traj_YYYYMMDD_HHMMSS.npz)"
+        help="Output path for trajectory NPZ file (default: Project/trajectories/traj_YYYYMMDD_HHMMSS.npz when recording stops)"
     )
     args = parser.parse_args()
     
-    # Set default output path if not provided
-    if args.record and args.output is None:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = Path(_HERE) / "trajectories"
-        output_dir.mkdir(exist_ok=True)
-        args.output_path = output_dir / f"traj_{timestamp}.npz"
-    elif args.record:
+    # Set default output path if provided, otherwise will be set when recording stops
+    if args.output is not None:
         args.output_path = Path(args.output)
     else:
         args.output_path = None

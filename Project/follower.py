@@ -38,7 +38,7 @@ LEADER_XML_PATH = "path/to/mujoco_menagerie/unitree_g1/scene.xml"
 # Ejemplo: "trajectories/traj_20251211_173426.npz" o ruta absoluta
 # La ruta se resuelve relativa al directorio donde está este archivo
 _HERE = Path(__file__).parent
-TRAJECTORY_NPZ_PATH = _HERE / "trajectories" / "traj_20251211_173426.npz"
+TRAJECTORY_NPZ_PATH = _HERE / "trajectories" / "traj_20251211_194827.npz"
 
 
 # ==========================
@@ -366,12 +366,20 @@ class AdaptiveController:
             self._Kd = 10.0
         
         
-        # Factor de filtrado para q̈_des (para suavizar)
-        self.lambda_filter = 0.1
+        # ===== FILTROS PARA MEJORAR ESTABILIDAD =====
+        
+        # Filtro de paso bajo para qddot_des (reduce ruido de diferenciación numérica)
+        self.qddot_des_filtered = None  # Estado del filtro
+        self.qddot_filter_alpha = 0.8  # Factor de filtrado (0.8 = más suavizado, 0.9 = menos suavizado)
+        
+        # Filtro exponencial para suavizar parámetros adaptativos
+        self.theta_hat_smoothed = self.theta_hat.copy()  # Versión suavizada de theta_hat
+        self.theta_smooth_alpha = 0.9  # Factor de suavizado (0.9 = más suavizado, 0.95 = muy suavizado)
         
         # Historial para análisis
         self.history = {
             'theta_hat': [],
+            'theta_hat_smoothed': [],
             'lyapunov': [],
             'Y_norm': []
         }
@@ -515,6 +523,28 @@ class AdaptiveController:
         
         return Y
     
+    def filter_qddot_des(self, qddot_des: np.ndarray) -> np.ndarray:
+        """
+        Filtra qddot_des usando filtro de paso bajo para reducir ruido.
+        
+        Filtro exponencial: q̈_filtrado = α * q̈_filtrado_anterior + (1-α) * q̈_actual
+        
+        Args:
+            qddot_des: Aceleración deseada (puede tener ruido)
+        
+        Returns:
+            qddot_des_filtered: Aceleración filtrada
+        """
+        if self.qddot_des_filtered is None:
+            # Primera vez: inicializar con valor actual
+            self.qddot_des_filtered = qddot_des.copy()
+        else:
+            # Filtro de paso bajo exponencial
+            self.qddot_des_filtered = (self.qddot_filter_alpha * self.qddot_des_filtered + 
+                                      (1.0 - self.qddot_filter_alpha) * qddot_des)
+        
+        return self.qddot_des_filtered
+    
     def compute_control(self,
                        q: np.ndarray,
                        qdot: np.ndarray,
@@ -536,7 +566,7 @@ class AdaptiveController:
             qdot: Velocidades actuales
             q_des: Posiciones deseadas
             qdot_des: Velocidades deseadas
-            qddot_des: Aceleraciones deseadas
+            qddot_des: Aceleraciones deseadas (se filtrarán para reducir ruido)
             data: Datos MuJoCo (requerido para calcular dinámicas)
         
         Returns:
@@ -547,19 +577,23 @@ class AdaptiveController:
         e = q_des - q
         edot = qdot_des - qdot
         
+        # Filtrar qddot_des para reducir ruido de diferenciación numérica
+        qddot_des_filtered = self.filter_qddot_des(qddot_des)
+        
         # Calcular dinámicas usando MuJoCo (con masas/inercias del modelo)
         if data is not None and self.model is not None and self.arm_qpos_idx is not None:
             M, C_qdot, g = self.compute_dynamics_matrices(q, qdot, data)
             
             # Compensación dinámica usando masas/inercias conocidas (del modelo MuJoCo)
             # τ_dynamic = M(q)q̈_des + C(q,q̇)q̇ + g(q)
-            tau_dynamic_known = M @ qddot_des + C_qdot + g
+            # Usar qddot_des filtrado para reducir ruido
+            tau_dynamic_known = M @ qddot_des_filtered + C_qdot + g
         else:
             # Fallback si no hay acceso a MuJoCo
             tau_dynamic_known = np.zeros(self.n_joints)
         
-        # Construir matriz de regresión
-        Y = self.build_regression_matrix(q, qdot, qddot_des, q_des, qdot_des, data)
+        # Construir matriz de regresión (usar qddot_des filtrado)
+        Y = self.build_regression_matrix(q, qdot, qddot_des_filtered, q_des, qdot_des, data)
         
         # Compensación adaptativa
         if self.adapt_gains:
@@ -589,11 +623,12 @@ class AdaptiveController:
                                   Y: np.ndarray,
                                   lambda_param: float = 1.0):
         """
-        Actualiza los parámetros adaptativos usando ley adaptativa.
+        Actualiza los parámetros adaptativos usando ley adaptativa con suavizado.
         
         Ley adaptativa: θ̂̇ = -Γ * Yᵀ * (e + λ*ė)
+        Suavizado: θ̂_smooth = α * θ̂_smooth_old + (1-α) * θ̂_new
         
-        Esto garantiza V̇ ≤ 0 (estabilidad asintótica)
+        Esto garantiza V̇ ≤ 0 (estabilidad asintótica) y reduce oscilaciones.
         
         Args:
             e: Error de posición
@@ -605,24 +640,36 @@ class AdaptiveController:
         # θ̂̇ = -Γ * Yᵀ * (e + λ*ė)
         error_vector = e + lambda_param * edot
         
-        # Actualizar parámetros
+        # Calcular actualización de parámetros
         dtheta = -self.Gamma @ (Y.T @ error_vector) * self.dt
-        self.theta_hat += dtheta
         
-        # Límites para evitar parámetros no físicos
+        # Actualizar parámetros sin suavizar primero
+        theta_hat_new = self.theta_hat + dtheta
+        
+        # Aplicar límites antes de suavizar
         # Fricción (puede ser positiva o negativa dependiendo del modelo)
         for i in range(self.n_joints):
-            self.theta_hat[i] = np.clip(self.theta_hat[i], -50.0, 50.0)  # fricción
+            theta_hat_new[i] = np.clip(theta_hat_new[i], -50.0, 50.0)  # fricción
         
         # Si adaptamos ganancias, aplicar límites
         if self.adapt_gains:
             # Ganancias PD deben ser positivas
-            self.theta_hat[-2] = np.clip(self.theta_hat[-2], 10.0, 500.0)  # Kp: mínimo 10, máximo 500
-            self.theta_hat[-1] = np.clip(self.theta_hat[-1], 1.0, 100.0)   # Kd: mínimo 1, máximo 100
+            theta_hat_new[-2] = np.clip(theta_hat_new[-2], 10.0, 500.0)  # Kp: mínimo 10, máximo 500
+            theta_hat_new[-1] = np.clip(theta_hat_new[-1], 1.0, 100.0)   # Kd: mínimo 1, máximo 100
+        
+        # Suavizar parámetros usando filtro exponencial
+        # θ̂_smooth = α * θ̂_smooth_old + (1-α) * θ̂_new
+        # Esto evita cambios bruscos y oscilaciones
+        self.theta_hat_smoothed = (self.theta_smooth_alpha * self.theta_hat_smoothed + 
+                                   (1.0 - self.theta_smooth_alpha) * theta_hat_new)
+        
+        # Usar la versión suavizada
+        self.theta_hat = self.theta_hat_smoothed.copy()
     
     def log_state(self, V: float, Y: np.ndarray):
         """Guarda el estado actual para análisis."""
         self.history['theta_hat'].append(self.theta_hat.copy())
+        self.history['theta_hat_smoothed'].append(self.theta_hat_smoothed.copy())
         self.history['lyapunov'].append(V)
         self.history['Y_norm'].append(np.linalg.norm(Y))
 
@@ -751,7 +798,7 @@ def main():
 
     # 3) Configuración de trayectoria
     dt = model.opt.timestep
-    USE_SINUSOIDAL_TEST = True # Cambia a False para usar trayectoria del archivo NPZ
+    USE_SINUSOIDAL_TEST = False # Cambia a False para usar trayectoria del archivo NPZ
     
     if USE_SINUSOIDAL_TEST:
         print("📐 Usando TRAYECTORIA SINUSOIDAL DE PRUEBA (solo primer joint)")
